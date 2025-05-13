@@ -34,7 +34,7 @@ func live(w http.ResponseWriter, r *http.Request) {
 	session := createGeminiSession(ctx)
 	defer session.Close()
 
-	// Send messages (separate thread)
+	// Read messages (separate thread)
 	go func() {
 		for {
 			message, err := session.Receive()
@@ -52,7 +52,7 @@ func live(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// Read messages
+	// Send messages
 	for {
 		_, message, err := connection.ReadMessage()
 		if err != nil {
