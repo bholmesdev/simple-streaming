@@ -35,26 +35,6 @@ func live(w http.ResponseWriter, r *http.Request) {
 	session := createGeminiSession(ctx)
 	defer session.Close()
 
-	// Read messages
-	for {
-		_, message, err := connection.ReadMessage()
-		if err != nil {
-			log.Println("Failed to read message from client:", err)
-			break
-		}
-		if len(message) > 0 {
-			log.Printf(" bytes size received from client: %d", len(message))
-		} else {
-			return
-		}
-
-		var realtimeInput genai.LiveRealtimeInput
-		if err := json.Unmarshal(message, &realtimeInput); err != nil {
-			log.Fatal("Failed to decode message as JSON:", string(message), err)
-		}
-		session.SendRealtimeInput(realtimeInput)
-	}
-
 	// Send messages (separate thread)
 	go func() {
 		for {
@@ -72,6 +52,24 @@ func live(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}()
+
+	// Read messages
+	for {
+		_, message, err := connection.ReadMessage()
+		if err != nil {
+			log.Println("Failed to read message from client:", err)
+			break
+		}
+		if len(message) > 0 {
+			// log.Printf(" bytes size received from client: %d", len(message))
+		}
+
+		var realtimeInput genai.LiveRealtimeInput
+		if err := json.Unmarshal(message, &realtimeInput); err != nil {
+			log.Fatal("Failed to decode message as JSON:", string(message), err)
+		}
+		session.SendRealtimeInput(realtimeInput)
+	}
 }
 
 func indexPage(w http.ResponseWriter, r *http.Request) {
