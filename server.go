@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"text/template"
-	"time"
 
 	_ "embed"
 
@@ -60,9 +59,6 @@ func live(w http.ResponseWriter, r *http.Request) {
 			log.Println("Failed to read message from client:", err)
 			break
 		}
-		if len(message) > 0 {
-			// log.Printf(" bytes size received from client: %d", len(message))
-		}
 
 		var realtimeInput genai.LiveRealtimeInput
 		if err := json.Unmarshal(message, &realtimeInput); err != nil {
@@ -84,25 +80,6 @@ func indexPage(w http.ResponseWriter, r *http.Request) {
 	if err := tmpl.Execute(w, wsUrl); err != nil {
 		http.Error(w, "Failed to render template", http.StatusInternalServerError)
 		return
-	}
-}
-
-func basic(w http.ResponseWriter, r *http.Request) {
-	// Required for streaming
-	w.Header().Set("Content-Type", "text/plain")
-	w.Header().Set("Transfer-Encoding", "chunked")
-
-	// Flush after every write
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
-		return
-	}
-
-	for i := 1; i <= 10; i++ {
-		fmt.Fprintf(w, "%d\n", i)
-		flusher.Flush()
-		time.Sleep(250 * time.Millisecond)
 	}
 }
 
