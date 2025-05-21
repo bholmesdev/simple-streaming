@@ -16,18 +16,12 @@ This project shows a simple example of websockets to stream audio in real time.
 
 1.  **Set up your Google API Key:**
 
-    You need to set the `GOOGLE_API_KEY` environment variable. You can do this by adding the following line to your shell configuration file (e.g., `.bashrc`, `.zshrc`) or by setting it in your current terminal session:
-
-    ```bash
-    export GOOGLE_API_KEY="YOUR_API_KEY"
-    ```
-
-    Replace `"YOUR_API_KEY"` with your actual Google API Key.
+    You need to set the `GOOGLE_API_KEY` environment variable. You can [get a Gemini API key for free](https://ai.google.dev/gemini-api/docs/api-key) and place it in a `.env` file. Follow the `.env.example`.
 
 2.  **Run the Development Server:**
 
     ```bash
-    go run main.go
+    go run server.go
     ```
 
     The server will start on `http://localhost:8080`. Open in your browser for a simple debug view.

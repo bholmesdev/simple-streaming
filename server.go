@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"text/template"
 
 	_ "embed"
 
 	"github.com/gorilla/websocket"
+	"github.com/joho/godotenv"
 	"google.golang.org/genai"
 )
 
@@ -41,13 +43,29 @@ func live(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				log.Fatal("Failed to receive session response:", err)
 			}
-			messageBytes, err := json.Marshal(message)
-			if err != nil {
-				log.Fatal("Failed to encode as JSON:", message, err)
-			}
-			if err := connection.WriteMessage(websocket.TextMessage, messageBytes); err != nil {
-				log.Println("Failed to write message:", err)
-				break
+			// Example tool call handling
+			if message.ToolCall != nil {
+				responses := []*genai.FunctionResponse{}
+				for _, functionCall := range message.ToolCall.FunctionCalls {
+					functionResponse := genai.FunctionResponse{
+						ID:       functionCall.ID,
+						Name:     functionCall.Name,
+						Response: map[string]any{"ok": "true"},
+					}
+					responses = append(responses, &functionResponse)
+				}
+				session.SendToolResponse(genai.LiveToolResponseInput{
+					FunctionResponses: responses,
+				})
+			} else if message.ServerContent != nil {
+				messageBytes, err := json.Marshal(message)
+				if err != nil {
+					log.Fatal("Failed to encode as JSON:", message, err)
+				}
+				if err := connection.WriteMessage(websocket.TextMessage, messageBytes); err != nil {
+					log.Println("Failed to write message:", err)
+					break
+				}
 			}
 		}
 	}()
@@ -84,7 +102,20 @@ func indexPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func createGeminiSession(ctx context.Context) *genai.Session {
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading .env file: %v\n", err)
+		os.Exit(1)
+	}
+
+	apiKey := os.Getenv("GOOGLE_API_KEY")
+	if apiKey == "" {
+		fmt.Fprintf(os.Stderr, "GOOGLE_API_KEY is not set\n")
+		os.Exit(1)
+	}
+
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey:      apiKey,
 		Backend:     genai.BackendGeminiAPI,
 		HTTPOptions: genai.HTTPOptions{APIVersion: "v1beta"},
 	})
@@ -93,7 +124,24 @@ func createGeminiSession(ctx context.Context) *genai.Session {
 		log.Fatal("Failed to create a Gemini client:", err)
 	}
 
-	session, err := client.Live.Connect(ctx, model, &genai.LiveConnectConfig{})
+	session, err := client.Live.Connect(ctx, model, &genai.LiveConnectConfig{
+		RealtimeInputConfig: &genai.RealtimeInputConfig{
+			AutomaticActivityDetection: &genai.AutomaticActivityDetection{
+				EndOfSpeechSensitivity: genai.EndSensitivityLow,
+				SilenceDurationMs:      ptr(int32(200)),
+			},
+		},
+		Tools: []*genai.Tool{
+			{
+				// Example tool call declaration
+				FunctionDeclarations: []*genai.FunctionDeclaration{
+					{
+						Name: "turn_on_the_lights",
+					},
+				},
+			},
+		},
+	})
 	if err != nil {
 		log.Fatal("Failed to connect to Gemini Flash live model:", err)
 	}
@@ -113,4 +161,8 @@ func main() {
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func ptr[T any](v T) *T {
+	return &v
 }
